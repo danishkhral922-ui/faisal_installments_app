@@ -1,54 +1,30 @@
-import 'package:hive/hive.dart';
-part 'customer_model.g.dart';
-
-@HiveType(typeId: 0)
-class CustomerModel extends HiveObject {
-  @HiveField(0)
+class CustomerModel {
   String id;
-  @HiveField(1)
   String name;
-  @HiveField(2)
   String fatherName;
-  @HiveField(3)
   String mobile;
-  @HiveField(4)
   String cnic;
-  @HiveField(5)
   String address;
-  @HiveField(6)
   String productName;
-  @HiveField(7)
   double price;
-  @HiveField(8)
   double downPayment;
-  @HiveField(9)
   int totalInstallments;
-  @HiveField(10)
   double installmentAmount;
-  @HiveField(11)
   DateTime startDate;
-  @HiveField(12)
   String referenceName;
-  @HiveField(13)
   String referencePhone;
-  @HiveField(14)
   String shopName;
-  @HiveField(15)
   String notes;
-  @HiveField(16)
   List<String> images;
-  @HiveField(17)
   int totalMonths;
-  @HiveField(18)
   bool isPaid;
-  @HiveField(19)
   String securityDetails;
-  @HiveField(20)
   int completedInstallments;
-  @HiveField(21)
   double paidAmount;
-  @HiveField(22)
   int lastPaidMonth;
+
+  // per-admin filtering (kept for compatibility)
+  String adminUid;
 
   CustomerModel({
     required this.id,
@@ -74,6 +50,7 @@ class CustomerModel extends HiveObject {
     this.completedInstallments = 0,
     this.paidAmount = 0,
     this.lastPaidMonth = 0,
+    this.adminUid = '',
   });
 
   double get remainingAmount =>

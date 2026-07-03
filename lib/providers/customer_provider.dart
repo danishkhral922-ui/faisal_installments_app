@@ -1,17 +1,19 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:installment_app/data/models/customer_model.dart';
 import 'package:installment_app/utils/monthly_status_scheduler.dart';
 
 class CustomerProvider extends ChangeNotifier {
   CustomerProvider();
 
-  Box<CustomerModel>? _box;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _customersSub;
 
   FirebaseFirestore? _firestore;
   List<CustomerModel> _customers = [];
+
   String _searchText = '';
   bool _showOnlyPending = false;
 
@@ -20,23 +22,22 @@ class CustomerProvider extends ChangeNotifier {
   bool get showOnlyPending => _showOnlyPending;
 
   FirebaseFirestore? get _firestoreInstance {
-    if (Firebase.apps.isEmpty) {
-      return null;
-    }
-
+    if (Firebase.apps.isEmpty) return null;
     _firestore ??= FirebaseFirestore.instance;
     return _firestore;
   }
 
   List<CustomerModel> get filteredCustomers {
     final query = _searchText.trim().toLowerCase();
-    var result = _customers.where((customer) {
+
+    final result = _customers.where((customer) {
       final matchesQuery =
           query.isEmpty ||
           customer.name.toLowerCase().contains(query) ||
           customer.mobile.contains(query) ||
           customer.cnic.toLowerCase().contains(query) ||
           customer.productName.toLowerCase().contains(query);
+
       final matchesPending = !_showOnlyPending || !customer.isPaid;
       return matchesQuery && matchesPending;
     });
@@ -45,28 +46,72 @@ class CustomerProvider extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    if (_box != null) {
-      return;
-    }
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
 
-    _box = await Hive.openBox<CustomerModel>('customers');
-    await loadCustomers();
+    // Listen to Firestore so offline cache works automatically.
+    await _customersSub?.cancel();
+
+    _customersSub = firestore
+        .collection('customers')
+        .orderBy('startDate', descending: true)
+        .snapshots()
+        .listen(
+          (snapshot) async {
+            _customers = snapshot.docs
+                .map((d) => _fromDoc(d))
+                .whereType<CustomerModel>()
+                .toList();
+
+            // Apply monthly reset when data changes / app opens.
+            await _applyMonthlyStatusResets(now: DateTime.now());
+
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint('[CustomerProvider] customers listen error: $e');
+          },
+        );
   }
 
-  Future<void> loadCustomers() async {
-    await initialize();
-    final box = _box;
-    if (box == null) {
-      return;
-    }
+  CustomerModel? _fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
+    final data = d.data();
+    if (data == null) return null;
 
-    _customers = box.values.toList().cast<CustomerModel>();
-    _customers.sort((a, b) => b.startDate.compareTo(a.startDate));
+    // startDate is stored as Timestamp (see addCustomer).
+    final startTs = data['startDate'];
+    final startDate = startTs is Timestamp
+        ? startTs.toDate()
+        : DateTime.tryParse('${startTs ?? ''}') ?? DateTime.now();
 
-    // Apply monthly reset logic when app loads.
-    await _applyMonthlyStatusResets(now: DateTime.now());
+    final images = (data['images'] as List?)?.cast<String>() ?? const [];
 
-    notifyListeners();
+    return CustomerModel(
+      id: d.id,
+      name: (data['name'] ?? '') as String,
+      fatherName: (data['fatherName'] ?? '') as String,
+      mobile: (data['phone'] ?? '') as String,
+      cnic: (data['cnic'] ?? '') as String,
+      address: (data['address'] ?? '') as String,
+      productName: (data['productName'] ?? '') as String,
+      price: (data['price'] ?? 0).toDouble(),
+      downPayment: (data['downPayment'] ?? 0).toDouble(),
+      totalInstallments: (data['totalMonths'] ?? 0) as int,
+      installmentAmount: (data['installmentAmount'] ?? 0).toDouble(),
+      startDate: startDate,
+      referenceName: (data['referenceName'] ?? '') as String,
+      referencePhone: (data['referencePhone'] ?? '') as String,
+      shopName: (data['shopName'] ?? '') as String,
+      notes: (data['notes'] ?? '') as String,
+      images: images,
+      totalMonths: (data['totalMonths'] ?? 0) as int,
+      securityDetails: (data['securityDetails'] ?? '') as String,
+      isPaid: (data['isPaid'] ?? false) as bool,
+      completedInstallments: (data['completedInstallments'] ?? 0) as int,
+      paidAmount: (data['paidAmount'] ?? 0).toDouble(),
+      lastPaidMonth: (data['lastPaidMonth'] ?? 0) as int,
+      adminUid: (data['adminUid'] ?? '') as String,
+    );
   }
 
   Future<void> addCustomer({
@@ -87,7 +132,8 @@ class CustomerProvider extends ChangeNotifier {
     String securityDetails = '',
     List<String> images = const [],
   }) async {
-    await initialize();
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
 
     final remainingAmount = price - downPayment;
     final installmentAmount = months > 0 ? remainingAmount / months : 0.0;
@@ -114,35 +160,31 @@ class CustomerProvider extends ChangeNotifier {
       securityDetails: securityDetails.trim(),
     );
 
-    debugPrint(
-      'Adding customer to Hive: id=${newCustomer.id} name=${newCustomer.name}',
-    );
-
-    await _box!.add(newCustomer);
-
-    final firestore = _firestoreInstance;
-    if (firestore != null) {
-      try {
-        await firestore.collection('customers').doc(newCustomer.id).set({
-          'name': newCustomer.name,
-          'fatherName': newCustomer.fatherName,
-          'phone': newCustomer.mobile,
-          'productName': newCustomer.productName,
-          'price': newCustomer.price,
-          'downPayment': newCustomer.downPayment,
-          'totalMonths': newCustomer.totalMonths,
-          'installmentAmount': newCustomer.installmentAmount,
-          'isPaid': newCustomer.isPaid,
-          'securityDetails': newCustomer.securityDetails,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-        debugPrint('Firebase set success for id=${newCustomer.id}');
-      } catch (e, s) {
-        debugPrint('Firebase sync skipped: $e\n$s');
-      }
-    }
-
-    await loadCustomers();
+    await firestore.collection('customers').doc(newCustomer.id).set({
+      'name': newCustomer.name,
+      'fatherName': newCustomer.fatherName,
+      'phone': newCustomer.mobile,
+      'cnic': newCustomer.cnic,
+      'address': newCustomer.address,
+      'productName': newCustomer.productName,
+      'price': newCustomer.price,
+      'downPayment': newCustomer.downPayment,
+      'totalMonths': newCustomer.totalMonths,
+      'installmentAmount': newCustomer.installmentAmount,
+      'completedInstallments': newCustomer.completedInstallments,
+      'paidAmount': newCustomer.paidAmount,
+      'lastPaidMonth': newCustomer.lastPaidMonth,
+      'isPaid': newCustomer.isPaid,
+      'securityDetails': newCustomer.securityDetails,
+      'referenceName': newCustomer.referenceName,
+      'referencePhone': newCustomer.referencePhone,
+      'shopName': newCustomer.shopName,
+      'notes': newCustomer.notes,
+      'images': newCustomer.images,
+      'startDate': Timestamp.fromDate(newCustomer.startDate),
+      'adminUid': newCustomer.adminUid,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> recordPayment(
@@ -150,38 +192,103 @@ class CustomerProvider extends ChangeNotifier {
     required int installments,
     required double amountPaid,
   }) async {
-    await initialize();
-    final customer = _customers.firstWhere((item) => item.id == id);
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
+
+    final customer = _customers.firstWhere((c) => c.id == id);
 
     final normalizedInstallments = installments.clamp(
       0,
       customer.totalMonths - customer.completedInstallments,
     );
-    if (normalizedInstallments <= 0) {
-      return;
-    }
+    if (normalizedInstallments <= 0) return;
 
     final monthlyInstallment = customer.totalMonths > 0
         ? (customer.price - customer.downPayment) / customer.totalMonths
         : 0.0;
+
     final expectedAmount = monthlyInstallment * normalizedInstallments;
     final safeAmount = amountPaid > 0 ? amountPaid : expectedAmount;
 
-    customer.completedInstallments += normalizedInstallments;
-    customer.paidAmount += safeAmount;
-    customer.lastPaidMonth = customer.completedInstallments;
+    final newCompleted =
+        customer.completedInstallments + normalizedInstallments;
+    final newPaidAmount = customer.paidAmount + safeAmount;
+    final isPaidNow =
+        newCompleted >= customer.totalMonths && customer.totalMonths > 0;
 
-    // Recompute paid/pending based on totals, not only boolean flag.
-    customer.isPaid =
-        customer.completedInstallments >= customer.totalMonths &&
-        customer.totalMonths > 0;
-
-    customer.installmentAmount = customer.isPaid
+    final newInstallmentAmount = isPaidNow
         ? 0.0
         : customer.currentMonthlyInstallment;
 
-    await customer.save();
-    await loadCustomers();
+    await firestore
+        .collection('customers')
+        .doc(id)
+        .update({
+          'completedInstallments': newCompleted,
+          'paidAmount': newPaidAmount,
+          'lastPaidMonth': newCompleted,
+          'isPaid': isPaidNow,
+          'installmentAmount': newInstallmentAmount,
+        })
+        .catchError((_) {});
+  }
+
+  Future<void> markAsPaid(String id, {bool isPaid = true}) async {
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
+
+    final customer = _customers.firstWhere((c) => c.id == id);
+
+    final newInstallmentAmount = isPaid
+        ? 0.0
+        : customer.currentMonthlyInstallment;
+
+    await firestore
+        .collection('customers')
+        .doc(id)
+        .update({'isPaid': isPaid, 'installmentAmount': newInstallmentAmount})
+        .catchError((_) {});
+  }
+
+  Future<void> updateCustomer(CustomerModel updated) async {
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
+
+    await firestore
+        .collection('customers')
+        .doc(updated.id)
+        .update({
+          'name': updated.name,
+          'fatherName': updated.fatherName,
+          'phone': updated.mobile,
+          'cnic': updated.cnic,
+          'address': updated.address,
+          'productName': updated.productName,
+          'price': updated.price,
+          'downPayment': updated.downPayment,
+          'totalMonths': updated.totalMonths,
+          'installmentAmount': updated.installmentAmount,
+          'completedInstallments': updated.completedInstallments,
+          'paidAmount': updated.paidAmount,
+          'lastPaidMonth': updated.lastPaidMonth,
+          'isPaid': updated.isPaid,
+          'securityDetails': updated.securityDetails,
+          'referenceName': updated.referenceName,
+          'referencePhone': updated.referencePhone,
+          'shopName': updated.shopName,
+          'notes': updated.notes,
+          'images': updated.images,
+          'startDate': Timestamp.fromDate(updated.startDate),
+          'adminUid': updated.adminUid,
+        })
+        .catchError((_) {});
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
+
+    await firestore.collection('customers').doc(id).delete().catchError((_) {});
   }
 
   void updateSearch(String value) {
@@ -194,100 +301,39 @@ class CustomerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> markAsPaid(String id, {bool isPaid = true}) async {
-    await initialize();
-    final customer = _customers.firstWhere((item) => item.id == id);
-    customer.isPaid = isPaid;
-    customer.installmentAmount = isPaid
-        ? 0.0
-        : customer.currentMonthlyInstallment;
-    await customer.save();
-    final firestore = _firestoreInstance;
-    if (firestore != null) {
-      await firestore
-          .collection('customers')
-          .doc(id)
-          .update({
-            'isPaid': customer.isPaid,
-            'installmentAmount': customer.installmentAmount,
-          })
-          .catchError((_) {});
-    }
-    await loadCustomers();
-  }
-
-  Future<void> updateCustomer(CustomerModel updated) async {
-    await initialize();
-    final customer = _customers.firstWhere((item) => item.id == updated.id);
-    customer.name = updated.name;
-    customer.fatherName = updated.fatherName;
-    customer.mobile = updated.mobile;
-    customer.cnic = updated.cnic;
-    customer.address = updated.address;
-    customer.productName = updated.productName;
-    customer.price = updated.price;
-    customer.downPayment = updated.downPayment;
-    customer.installmentAmount = updated.installmentAmount;
-    customer.referenceName = updated.referenceName;
-    customer.referencePhone = updated.referencePhone;
-    customer.shopName = updated.shopName;
-    customer.notes = updated.notes;
-    customer.securityDetails = updated.securityDetails;
-    customer.images = updated.images;
-    customer.isPaid = updated.isPaid;
-    customer.totalMonths = updated.totalMonths;
-    customer.completedInstallments = updated.completedInstallments;
-    customer.paidAmount = updated.paidAmount;
-    customer.lastPaidMonth = updated.lastPaidMonth;
-    await customer.save();
-    await loadCustomers();
-  }
-
-  Future<void> deleteCustomer(String id) async {
-    await initialize();
-    final index = _customers.indexWhere((customer) => customer.id == id);
-    if (index >= 0) {
-      final customer = _customers[index];
-      await _box!.delete(customer.key);
-      final firestore = _firestoreInstance;
-      if (firestore != null) {
-        await firestore
-            .collection('customers')
-            .doc(id)
-            .delete()
-            .catchError((_) {});
-      }
-      await loadCustomers();
-    }
-  }
-
   Future<void> _applyMonthlyStatusResets({required DateTime now}) async {
     if (_customers.isEmpty) return;
+
+    final firestore = _firestoreInstance;
+    if (firestore == null) return;
 
     // Apply scheduler and persist changes.
     final changed = MonthlyStatusScheduler.runOnCustomers(
       customers: _customers,
       now: now,
       onChanged: (customer) async {
-        await customer.save();
-
-        final firestore = _firestoreInstance;
-        if (firestore != null) {
-          await firestore
-              .collection('customers')
-              .doc(customer.id)
-              .update({
-                'isPaid': customer.isPaid,
-                'installmentAmount': customer.installmentAmount,
-                'lastPaidMonth': customer.lastPaidMonth,
-              })
-              .catchError((_) {});
-        }
+        await firestore
+            .collection('customers')
+            .doc(customer.id)
+            .update({
+              'isPaid': customer.isPaid,
+              'installmentAmount': customer.installmentAmount,
+              'lastPaidMonth': customer.lastPaidMonth,
+              'completedInstallments': customer.completedInstallments,
+              'paidAmount': customer.paidAmount,
+            })
+            .catchError((_) {});
       },
     );
 
     if (changed > 0) {
       debugPrint('Monthly reset applied to $changed customers');
     }
+  }
+
+  @override
+  void dispose() {
+    _customersSub?.cancel();
+    super.dispose();
   }
 }

@@ -225,6 +225,7 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     final updated = CustomerModel(
       id: widget.customer.id,
       name: nameCtrl.text.trim(),
+      adminUid: widget.customer.adminUid,
       fatherName: fatherCtrl.text.trim(),
       mobile: phoneCtrl.text.trim(),
       cnic: cnicCtrl.text.trim(),

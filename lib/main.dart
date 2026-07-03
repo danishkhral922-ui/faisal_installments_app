@@ -1,7 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:installment_app/data/models/customer_model.dart';
+
 import 'package:installment_app/firebase_options.dart';
 import 'package:installment_app/providers/auth_provider.dart';
 import 'package:installment_app/providers/customer_provider.dart';
@@ -17,20 +16,6 @@ Future<void> _initializeAppDependencies() async {
     );
   } catch (error) {
     debugPrint('Firebase initialization skipped: $error');
-  }
-
-  try {
-    await Hive.initFlutter();
-  } catch (error) {
-    debugPrint('Hive initialization skipped: $error');
-  }
-
-  try {
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(CustomerModelAdapter());
-    }
-  } catch (error) {
-    debugPrint('Hive adapter registration skipped: $error');
   }
 }
 

@@ -12,6 +12,7 @@ void main() {
     final customer = CustomerModel(
       id: '1',
       name: 'Ali Khan',
+      adminUid: 'admin-1',
       fatherName: 'Khalid Khan',
       mobile: '03001234567',
       cnic: '12345-6789012-3',
