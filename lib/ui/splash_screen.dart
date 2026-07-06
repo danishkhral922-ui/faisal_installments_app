@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:installment_app/providers/auth_provider.dart';
 import 'package:installment_app/providers/customer_provider.dart';
 import 'package:installment_app/ui/screens/auth_screen.dart';
+import 'package:installment_app/ui/screens/bottom_nav_shell_screen.dart';
 import 'package:installment_app/ui/screens/home_screen.dart';
 import 'package:installment_app/ui/widgets/app_logo.dart';
 
@@ -76,8 +77,9 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            auth.isAuthenticated ? const HomeScreen() : const AuthScreen(),
+        builder: (_) => auth.isAuthenticated
+            ? const BottomNavShellScreen()
+            : const AuthScreen(),
       ),
     );
   }

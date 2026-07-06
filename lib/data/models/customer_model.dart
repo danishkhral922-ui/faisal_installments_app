@@ -1,3 +1,5 @@
+import 'payment_entry.dart';
+
 class CustomerModel {
   String id;
   String name;
@@ -22,6 +24,10 @@ class CustomerModel {
   int completedInstallments;
   double paidAmount;
   int lastPaidMonth;
+
+  /// Bank-statement style installment-wise payment ledger.
+  /// Stored as list of entries with paid date + per-installment amount.
+  List<PaymentEntry> paymentHistory;
 
   // per-admin filtering (kept for compatibility)
   String adminUid;
@@ -50,6 +56,7 @@ class CustomerModel {
     this.completedInstallments = 0,
     this.paidAmount = 0,
     this.lastPaidMonth = 0,
+    this.paymentHistory = const [],
     this.adminUid = '',
   });
 

@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 String buildCustomerRecordText(CustomerModel customer) {
   // Must match what CustomerDetailScreen shows.
   final paidAmount = customer.paidAmount;
-  final remaining = customer.installmentAmount;
+
   return '''
 Installment Record
 =================
@@ -175,7 +175,7 @@ Future<void> printCustomerRecord(CustomerModel customer) async {
                     pw.SizedBox(height: 24),
                     pw.Container(height: 1, color: PdfColors.grey400),
                     pw.SizedBox(height: 4),
-                    pw.Text('Muhammad Faisal'),
+                    pw.Text('Proprietor: Muhammad Faisal'),
                   ],
                 ),
               ),

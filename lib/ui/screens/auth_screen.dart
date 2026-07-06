@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
-import 'home_screen.dart';
+import 'bottom_nav_shell_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -46,9 +47,10 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
       if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const BottomNavShellScreen()),
       );
     } catch (e) {
       if (!mounted) return;

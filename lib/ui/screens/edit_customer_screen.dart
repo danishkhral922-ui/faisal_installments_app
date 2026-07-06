@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/models/customer_model.dart';
 import '../../providers/customer_provider.dart';
 import '../../utils/validators.dart';
+
+enum ImageSourceKey { cnicFront, cnicBack, product }
 
 class EditCustomerScreen extends StatefulWidget {
   const EditCustomerScreen({super.key, required this.customer});
@@ -31,6 +34,11 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
   late final TextEditingController notesCtrl;
   late final TextEditingController securityCtrl;
 
+  final ImagePicker _picker = ImagePicker();
+  XFile? _cnicFront;
+  XFile? _cnicBack;
+  XFile? _productImage;
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +63,47 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     );
     notesCtrl = TextEditingController(text: widget.customer.notes);
     securityCtrl = TextEditingController(text: widget.customer.securityDetails);
+
+    // images order: 0=cnicFront, 1=cnicBack, 2=productImage
+    final imgs = widget.customer.images;
+    _cnicFront = imgs.length > 0 ? _filePathToXFile(imgs[0]) : null;
+    _cnicBack = imgs.length > 1 ? _filePathToXFile(imgs[1]) : null;
+    _productImage = imgs.length > 2 ? _filePathToXFile(imgs[2]) : null;
   }
+
+  XFile? _filePathToXFile(String path) {
+    if (path.trim().isEmpty) return null;
+    return XFile(path);
+  }
+
+  Future<XFile?> _pickAndReturn(ImageSourceKey key) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return null;
+
+    final image = await _picker.pickImage(source: source, imageQuality: 80);
+    return image;
+  }
+
+  // top-level enum must be outside the state class
 
   @override
   void dispose() {
@@ -192,6 +240,75 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                 _field('Notes', notesCtrl),
                 _field('Security Details', securityCtrl),
                 const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.credit_card,
+                      color: Color(0xFF122A5E),
+                    ),
+                    title: const Text('CNIC Front'),
+                    subtitle: Text(
+                      _cnicFront == null
+                          ? 'Take from camera or gallery'
+                          : _cnicFront!.name,
+                    ),
+                    trailing: const Icon(Icons.camera_alt_outlined),
+                    onTap: () async {
+                      final image = await _pickAndReturn(
+                        ImageSourceKey.cnicFront,
+                      );
+                      if (!mounted) return;
+                      if (image != null) setState(() => _cnicFront = image);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.credit_card,
+                      color: Color(0xFF122A5E),
+                    ),
+                    title: const Text('CNIC Back'),
+                    subtitle: Text(
+                      _cnicBack == null
+                          ? 'Take from camera or gallery'
+                          : _cnicBack!.name,
+                    ),
+                    trailing: const Icon(Icons.camera_alt_outlined),
+                    onTap: () async {
+                      final image = await _pickAndReturn(
+                        ImageSourceKey.cnicBack,
+                      );
+                      if (!mounted) return;
+                      setState(() => _cnicBack = image);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: Color(0xFF122A5E),
+                    ),
+                    title: const Text('Product Image'),
+                    subtitle: Text(
+                      _productImage == null
+                          ? 'Take from camera or gallery'
+                          : _productImage!.name,
+                    ),
+                    trailing: const Icon(Icons.camera_alt_outlined),
+                    onTap: () async {
+                      final image = await _pickAndReturn(
+                        ImageSourceKey.product,
+                      );
+                      if (!mounted) return;
+                      setState(() => _productImage = image);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -222,6 +339,12 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
   Future<void> _save() async {
     final provider = context.read<CustomerProvider>();
 
+    final updatedImages = [
+      if (_cnicFront != null) _cnicFront!.path,
+      if (_cnicBack != null) _cnicBack!.path,
+      if (_productImage != null) _productImage!.path,
+    ];
+
     final updated = CustomerModel(
       id: widget.customer.id,
       name: nameCtrl.text.trim(),
@@ -245,7 +368,11 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       referencePhone: referencePhoneCtrl.text.trim(),
       shopName: widget.customer.shopName,
       notes: notesCtrl.text.trim(),
-      images: widget.customer.images,
+      images: [
+        if (_cnicFront != null) _cnicFront!.path,
+        if (_cnicBack != null) _cnicBack!.path,
+        if (_productImage != null) _productImage!.path,
+      ],
       totalMonths:
           int.tryParse(monthsCtrl.text.trim()) ?? widget.customer.totalMonths,
       isPaid: widget.customer.isPaid,

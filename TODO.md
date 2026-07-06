@@ -1,9 +1,12 @@
-- [x] Create Firebase-only data layer plan: remove Hive usage from CustomerModel persistence and provider logic
-- [ ] Update CustomerProvider: load customers from Firestore with Firestore cache for offline support; remove Box<CustomerModel> and Hive.openBox usage
-- [ ] Remove Hive initialization/adapter registration from main.dart
-- [ ] Update recordPayment/add/update/delete methods to read/modify/write Firestore (and keep local in-memory list)
-- [ ] Keep existing monthly status reset logic but apply updates to Firestore
-- [ ] Update dependencies in pubspec.yaml: remove hive, hive_flutter, hive_generator, build_runner/hive_generator if not needed
-- [ ] Run flutter analyze + tests
+# TODO - Statement (Installment-wise) Feature
 
+- [ ] Step 1: Extend `CustomerModel` with `paymentHistory` and `PaymentEntry`.
+- [ ] Step 2: Update `CustomerProvider.recordPayment()` to append installment-wise ledger entries with dates and per-installment amounts.
+- [ ] Step 3: Update Firestore serialization/deserialization in `CustomerProvider` (`addCustomer`, `_fromDoc`, `updateCustomer`).
+- [ ] Step 4: Implement statement generator in `lib/utils/record_export.dart`:
+  - [ ] Build statement text (bank-statement style table)
+  - [ ] Generate PDF with installment rows
+  - [ ] Save to Downloads (TXT)
+- [ ] Step 5: Update `CustomerDetailScreen` popup menu to use Statement actions (Save/Print/Share) rather than summary.
+- [ ] Step 6: Quick sanity test: add customer, record installments, verify statement output includes installment number, paid date, amount.
 

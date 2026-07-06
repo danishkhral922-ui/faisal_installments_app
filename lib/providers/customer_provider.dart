@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:installment_app/data/models/customer_model.dart';
+import 'package:installment_app/data/models/payment_entry.dart';
 import 'package:installment_app/utils/monthly_status_scheduler.dart';
 
 class CustomerProvider extends ChangeNotifier {
@@ -110,6 +111,9 @@ class CustomerProvider extends ChangeNotifier {
       completedInstallments: (data['completedInstallments'] ?? 0) as int,
       paidAmount: (data['paidAmount'] ?? 0).toDouble(),
       lastPaidMonth: (data['lastPaidMonth'] ?? 0) as int,
+      paymentHistory: ((data['paymentHistory'] as List?) ?? const [])
+          .map((e) => PaymentEntry.fromMap((e as Map).cast<String, dynamic>()))
+          .toList(),
       adminUid: (data['adminUid'] ?? '') as String,
     );
   }
@@ -181,6 +185,9 @@ class CustomerProvider extends ChangeNotifier {
       'shopName': newCustomer.shopName,
       'notes': newCustomer.notes,
       'images': newCustomer.images,
+      'paymentHistory': newCustomer.paymentHistory
+          .map((e) => e.toMap())
+          .toList(),
       'startDate': Timestamp.fromDate(newCustomer.startDate),
       'adminUid': newCustomer.adminUid,
       'timestamp': FieldValue.serverTimestamp(),
@@ -220,6 +227,24 @@ class CustomerProvider extends ChangeNotifier {
         ? 0.0
         : customer.currentMonthlyInstallment;
 
+    final now = DateTime.now();
+    final perInstallmentAmount = normalizedInstallments > 0
+        ? safeAmount / normalizedInstallments
+        : 0.0;
+
+    final newHistory = List<Map<String, dynamic>>.from(
+      customer.paymentHistory.map((e) => e.toMap()),
+    );
+
+    for (int i = 0; i < normalizedInstallments; i++) {
+      final installmentNo = customer.completedInstallments + i + 1;
+      newHistory.add({
+        'installmentNo': installmentNo,
+        'paidDate': now.toIso8601String(),
+        'amount': perInstallmentAmount,
+      });
+    }
+
     await firestore
         .collection('customers')
         .doc(id)
@@ -229,6 +254,7 @@ class CustomerProvider extends ChangeNotifier {
           'lastPaidMonth': newCompleted,
           'isPaid': isPaidNow,
           'installmentAmount': newInstallmentAmount,
+          'paymentHistory': newHistory,
         })
         .catchError((_) {});
   }
@@ -243,6 +269,9 @@ class CustomerProvider extends ChangeNotifier {
         ? 0.0
         : customer.currentMonthlyInstallment;
 
+    // If admin manually marks as paid/pending we do NOT change paymentHistory
+    // because we don't know which exact installments were paid.
+    // Statement will reflect paymentHistory (ledger).
     await firestore
         .collection('customers')
         .doc(id)

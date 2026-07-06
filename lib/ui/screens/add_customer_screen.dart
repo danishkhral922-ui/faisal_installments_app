@@ -29,7 +29,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   DateTime selectedDate = DateTime.now();
   final ImagePicker _picker = ImagePicker();
-  XFile? _pickedImage;
+
+  XFile? _cnicFront;
+  XFile? _cnicBack;
+  XFile? _productImage;
 
   @override
   void dispose() {
@@ -49,7 +52,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickCnicFront() async => _pickAndSet('cnicFront');
+  Future<void> _pickCnicBack() async => _pickAndSet('cnicBack');
+  Future<void> _pickProductImage() async => _pickAndSet('product');
+
+  Future<void> _pickAndSet(String which) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (context) => SafeArea(
@@ -70,12 +77,25 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       ),
     );
 
-    if (source != null) {
-      final image = await _picker.pickImage(source: source, imageQuality: 80);
-      if (image != null) {
-        setState(() => _pickedImage = image);
+    if (source == null) return;
+
+    final image = await _picker.pickImage(source: source, imageQuality: 80);
+
+    if (image == null) return;
+
+    setState(() {
+      switch (which) {
+        case 'cnicFront':
+          _cnicFront = image;
+          break;
+        case 'cnicBack':
+          _cnicBack = image;
+          break;
+        case 'product':
+          _productImage = image;
+          break;
       }
-    }
+    });
   }
 
   Future<void> _pickDate() async {
@@ -230,17 +250,51 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 Card(
                   child: ListTile(
                     leading: const Icon(
-                      Icons.image_outlined,
+                      Icons.credit_card,
                       color: Color(0xFF122A5E),
                     ),
-                    title: const Text('Customer Photo'),
+                    title: const Text('CNIC Front'),
                     subtitle: Text(
-                      _pickedImage == null
+                      _cnicFront == null
                           ? 'Take from camera or gallery'
-                          : _pickedImage!.name,
+                          : _cnicFront!.name,
                     ),
                     trailing: const Icon(Icons.camera_alt_outlined),
-                    onTap: _pickImage,
+                    onTap: _pickCnicFront,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.credit_card,
+                      color: Color(0xFF122A5E),
+                    ),
+                    title: const Text('CNIC Back'),
+                    subtitle: Text(
+                      _cnicBack == null
+                          ? 'Take from camera or gallery'
+                          : _cnicBack!.name,
+                    ),
+                    trailing: const Icon(Icons.camera_alt_outlined),
+                    onTap: _pickCnicBack,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: Color(0xFF122A5E),
+                    ),
+                    title: const Text('Product Image'),
+                    subtitle: Text(
+                      _productImage == null
+                          ? 'Take from camera or gallery'
+                          : _productImage!.name,
+                    ),
+                    trailing: const Icon(Icons.camera_alt_outlined),
+                    onTap: _pickProductImage,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -314,7 +368,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         referencePhone: referencePhoneCtrl.text.trim(),
         notes: notesCtrl.text.trim(),
         securityDetails: securityCtrl.text.trim(),
-        images: _pickedImage == null ? const [] : [_pickedImage!.path],
+        images: [
+          if (_cnicFront != null) _cnicFront!.path,
+          if (_cnicBack != null) _cnicBack!.path,
+          if (_productImage != null) _productImage!.path,
+        ],
       );
 
       if (!mounted) return;

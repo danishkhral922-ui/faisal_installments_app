@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/models/customer_model.dart';
 import '../../providers/customer_provider.dart';
-import '../../utils/record_export.dart';
+import '../../utils/statement_export.dart' as statement_export;
 
 /// IMPORTANT:
 /// CustomerDetailScreen must rebuild after recordPayment.
@@ -49,16 +49,18 @@ class _CustomerDetailBody extends StatelessWidget {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) async {
               if (value == 'share') {
-                await exportCustomerRecord(customer);
+                await statement_export.exportCustomerStatement(customer);
               } else if (value == 'save') {
-                final savedFile = await saveCustomerRecordToDownloads(customer);
+                final savedFile = await statement_export
+                    .saveCustomerStatementToDownloads(customer);
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Saved to ${savedFile.path}')),
                   );
                 }
               } else if (value == 'print') {
-                await printCustomerRecord(customer);
+                await statement_export.printCustomerStatement(customer);
               }
             },
             itemBuilder: (context) => const [
@@ -145,50 +147,20 @@ class _CustomerDetailBody extends StatelessWidget {
                 'Notes',
                 customer.notes.isEmpty ? 'No notes' : customer.notes,
               ),
-              Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                color: Colors.white.withValues(alpha: 0.08),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Customer Image',
-                        style: TextStyle(fontSize: 12, color: Colors.white70),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        height: 140,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: customer.images.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.file(
-                                  File(customer.images.first),
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Center(
-                                child: Icon(
-                                  Icons.person_outline,
-                                  size: 48,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
+              _imageCard(
+                title: 'CNIC Front',
+                path: customer.images.isNotEmpty ? customer.images[0] : null,
+                placeholderIcon: Icons.credit_card,
+              ),
+              _imageCard(
+                title: 'CNIC Back',
+                path: customer.images.length > 1 ? customer.images[1] : null,
+                placeholderIcon: Icons.credit_card_outlined,
+              ),
+              _imageCard(
+                title: 'Product Image',
+                path: customer.images.length > 2 ? customer.images[2] : null,
+                placeholderIcon: Icons.shopping_bag_outlined,
               ),
               const SizedBox(height: 8),
               if (!customer.isPaid)
@@ -353,6 +325,55 @@ class _CustomerDetailBody extends StatelessWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('Installment recorded')));
     }
+  }
+
+  Widget _imageCard({
+    required String title,
+    required String? path,
+    required IconData placeholderIcon,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: Colors.white.withValues(alpha: 0.08),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 140,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: path != null && path.trim().isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(File(path), fit: BoxFit.cover),
+                    )
+                  : Center(
+                      child: Icon(
+                        placeholderIcon,
+                        size: 48,
+                        color: Colors.white70,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _infoCard(String label, String value) {
