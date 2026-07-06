@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/customer_provider.dart';
+import '../../providers/theme_provider.dart';
 import 'customer_detail_screen.dart';
 
 class InstallmentsScreen extends StatelessWidget {
@@ -22,12 +23,8 @@ class InstallmentsScreen extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+        decoration: BoxDecoration(
+          gradient: context.watch<ThemeProvider>().appGradient,
         ),
         child: SafeArea(
           child: DefaultTabController(

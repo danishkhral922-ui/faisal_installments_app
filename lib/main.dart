@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:installment_app/firebase_options.dart';
 import 'package:installment_app/providers/auth_provider.dart';
 import 'package:installment_app/providers/customer_provider.dart';
+import 'package:installment_app/providers/theme_provider.dart';
 import 'package:installment_app/ui/screens/auth_screen.dart';
 import 'package:installment_app/ui/screens/settings_screen.dart';
 import 'package:installment_app/ui/splash_screen.dart';
@@ -32,6 +33,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: provider),
         ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const InstallmentApp(),
     ),
@@ -43,13 +45,19 @@ class InstallmentApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final preset = themeProvider.activePreset;
+
     return MaterialApp(
+      // Rebuild the whole MaterialApp when theme changes.
+      key: ValueKey(themeProvider.selectedThemeIndex),
       title: 'Installment Tracker',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF122A5E)),
+        colorScheme: ColorScheme.fromSeed(seedColor: preset.seedColor),
         useMaterial3: true,
       ),
+      themeMode: ThemeMode.system,
       home: const SplashScreen(),
       routes: {
         '/auth': (_) => const AuthScreen(),

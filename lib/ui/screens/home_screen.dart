@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/theme_provider.dart';
+
 import 'add_customer_screen.dart';
 import 'customer_detail_screen.dart';
 import 'edit_customer_screen.dart';
@@ -36,12 +38,8 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
-          ),
+        decoration: BoxDecoration(
+          gradient: context.watch<ThemeProvider>().appGradient,
         ),
         child: SafeArea(
           child: Consumer<CustomerProvider>(

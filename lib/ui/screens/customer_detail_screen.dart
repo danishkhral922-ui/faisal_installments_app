@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/models/customer_model.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../utils/statement_export.dart' as statement_export;
 
 /// IMPORTANT:
@@ -72,12 +73,8 @@ class _CustomerDetailBody extends StatelessWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+        decoration: BoxDecoration(
+          gradient: context.watch<ThemeProvider>().appGradient,
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),

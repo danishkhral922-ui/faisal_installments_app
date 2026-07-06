@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../utils/validators.dart';
 
 class AddCustomerScreen extends StatefulWidget {
@@ -121,12 +122,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         foregroundColor: Colors.white,
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+        decoration: BoxDecoration(
+          gradient: context.watch<ThemeProvider>().appGradient,
         ),
         child: Form(
           key: _formKey,
@@ -334,6 +331,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   icon: const Icon(Icons.save),
                   label: const Text('SAVE CUSTOMER RECORD'),
                 ),
+                SizedBox(height: 100),
               ],
             ),
           ),

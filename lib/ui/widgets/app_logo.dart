@@ -44,7 +44,7 @@ class AppLogo extends StatelessWidget {
               ],
             ),
           ),
-          // Inner icon + letter F
+          // Inner icon from assets (replaces letter F)
           Container(
             width: 70,
             height: 70,
@@ -52,37 +52,14 @@ class AppLogo extends StatelessWidget {
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.12),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Spacer(),
-                // Make a "phone-like" symbol + letter F look
-                Transform.rotate(
-                  angle: -0.12,
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1E3C72), Color(0xFF5E7BE2)],
-                      ),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'F',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-              ],
+            alignment: Alignment.center,
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/icon.png',
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ],

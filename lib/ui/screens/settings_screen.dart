@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
+import 'settings_theme_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -34,6 +36,23 @@ class SettingsScreen extends StatelessWidget {
                       ? 'Not signed in'
                       : auth.currentEmail,
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Change Theme'),
+                subtitle: const Text('Pick top colors for the app'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SettingsThemeScreen(),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 12),
